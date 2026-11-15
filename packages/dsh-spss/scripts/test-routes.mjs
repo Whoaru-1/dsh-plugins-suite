@@ -22,6 +22,10 @@ import { fileURLToPath } from 'node:url'
 const here = path.dirname(fileURLToPath(import.meta.url))
 const bundleDir = path.dirname(here)
 
+// A throwaway DSH_HOME keeps the suite off the real profile and gives the
+// outputs-dir assertions a known, per-pid root.
+process.env.DSH_HOME = mkdtempSync(path.join(tmpdir(), `dsh-spss-routes-${process.pid}`))
+
 let passed = 0
 let failed = 0
 const failures = []
@@ -100,7 +104,15 @@ if (process.argv.includes('--dialog')) delete process.env.DSH_SPSS_PICKER
 else process.env.DSH_SPSS_PICKER = 'off'
 
 const host = await import(new URL('../index.js', import.meta.url).href)
-host.apply(ctx)
+// Cordis calls apply(ctx, config): the row's config is the SECOND argument.
+host.apply(ctx, {
+  pythonPath: '',
+  timeoutMs: 300_000,
+  // Empty => the plugin resolves <DSH_HOME>/dsh-spss/outputs, which the
+  // assertions below expect under this test's temporary DSH_HOME.
+  outputsDir: '',
+  allowNativePicker: true,
+})
 
 console.log(`\ndsh-spss route + tool test — ${bundleDir}\n`)
 
@@ -181,7 +193,7 @@ check('status reports python.path/version/ok', typeof status.body?.python?.path 
 check('status reports enginePath inside the bundle', status.body?.enginePath === path.join(bundleDir, 'engine', 'analyze.py'))
 check('status reports hasPyreadstat/hasScipy booleans', typeof status.body?.hasPyreadstat === 'boolean' && typeof status.body?.hasScipy === 'boolean')
 check('status reports homeDir', typeof status.body?.homeDir === 'string' && status.body.homeDir.startsWith('/'))
-check('status reports outputsDir ABSOLUTE and expanded', typeof status.body?.outputsDir === 'string' && path.isAbsolute(status.body.outputsDir) && status.body.outputsDir.endsWith('dsh-spss-routes-' + process.pid), status.body?.outputsDir)
+check('status reports outputsDir ABSOLUTE and expanded', typeof status.body?.outputsDir === 'string' && path.isAbsolute(status.body.outputsDir) && status.body.outputsDir.includes('dsh-spss-routes-' + process.pid), status.body?.outputsDir)
 check('status reports defaultOutBaseName', typeof status.body?.defaultOutBaseName === 'string' && status.body.defaultOutBaseName.startsWith('spss-'), status.body?.defaultOutBaseName)
 check('status reports platform', status.body?.platform === process.platform)
 check('status reports picker capability', typeof status.body?.picker?.available === 'boolean')
