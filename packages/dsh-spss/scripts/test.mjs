@@ -39,19 +39,8 @@ function check(label, condition, detail) {
   console.log(`  ✗ ${label}${detail === undefined ? '' : ` — ${detail}`}`)
 }
 
-/**
- * AppleScript compilation is a macOS-only check.
- *
- * `osacompile` does not exist on Linux or Windows, so on those platforms these
- * checks report as skipped instead of failing: the AppleScript generator itself
- * is still exercised (its output is asserted textually above), only the
- * compiler round-trip is unavailable.
- */
-const CAN_COMPILE_APPLESCRIPT = process.platform === 'darwin' && existsSync('/usr/bin/osacompile')
-
 /** Run `osacompile` on a generated script to prove it is valid AppleScript. */
 function compileCheck(source) {
-  if (!CAN_COMPILE_APPLESCRIPT) return Promise.resolve({ ok: null, stderr: '', skipped: true })
   return new Promise((resolve) => {
     const dir = mkdtempSync(path.join(tmpdir(), 'dsh-spss-compile-'))
     const scriptPath = path.join(dir, 'picker.applescript')
@@ -128,19 +117,11 @@ check('cancel maps to the sentinel', openScript.includes('__DSH_SPSS_CANCELLED__
 check('save name not doubled by defaultLocation', !/default location/.test(saveScript))
 for (const [kind, source] of [['open', openScript], ['save', saveScript], ['folder', folderScript]]) {
   const compiled = await compileCheck(source)
-  if (compiled.ok === null) {
-    console.log(`- ${kind} script compiles with osacompile — skipped (osacompile is macOS-only)`)
-  } else {
-    check(`${kind} script compiles with osacompile`, compiled.ok, compiled.stderr.trim().split('\n').slice(-2).join(' '))
-  }
+  check(`${kind} script compiles with osacompile`, compiled.ok, compiled.stderr.trim().split('\n').slice(-2).join(' '))
 }
 const hostile = bridge.buildAppleScript('folder', { prompt: 'x" & (do shell script "id") & "', defaultLocation: '~/D' })
 const hostileCompiled = await compileCheck(hostile)
-if (hostileCompiled.ok === null) {
-  console.log('- hostile prompt still compiles (inert) — skipped (osacompile is macOS-only)')
-} else {
-  check('hostile prompt still compiles (inert)', hostileCompiled.ok, hostileCompiled.stderr.trim())
-}
+check('hostile prompt still compiles (inert)', hostileCompiled.ok, hostileCompiled.stderr.trim())
 
 /* ------------------------------------------------------------------ */
 console.log('\n6. normalizeFilters')
@@ -312,7 +293,9 @@ console.log('\n16. bundle manifest + engine wiring')
 const manifest = JSON.parse(readFileSync(path.join(bundleDir, 'package.json'), 'utf8'))
 check('package.json parses and has the bundle patch', manifest.dsh?.bundle?.patch === './cordis.patch.yml')
 check('package.json declares the client', manifest.dsh?.client?.platform === 'web')
-check('exports ./client → ./client.js', manifest.exports?.['./client'] === './client.js')
+check('exports ./client points at the built bundle', manifest.exports?.['./client'] === './lib/client.js')
+check('built client bundle exists', existsSync(path.join(bundleDir, 'lib', 'client.js')))
+check('no stale root client.js', !existsSync(path.join(bundleDir, 'client.js')))
 check('main is ./index.js', manifest.main === './index.js')
 check('cordis.patch.yml mounts the row', readFileSync(path.join(bundleDir, 'cordis.patch.yml'), 'utf8').includes("id: dsh-spss"))
 check('engine path resolves inside the bundle', bridge.enginePath(bundleDir) === path.join(bundleDir, 'engine', 'analyze.py'))

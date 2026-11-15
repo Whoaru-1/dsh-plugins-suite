@@ -7,11 +7,9 @@
  * the host module table already owns them — bundling a second copy would
  * break hooks across the slot boundary.
  *
- * esbuild resolves the ordinary way first: install it in this package
- * (`npm install`) and the build works anywhere. `DSH_ESBUILD` still points at a
- * specific `lib/main.js`, and a DSH profile that already ships esbuild is used
- * as a last resort so a linked checkout keeps building without its own install.
- * Nothing is downloaded at build time.
+ * esbuild is resolved from the profile's installed `dsh-notes` dependency
+ * tree, which is how this machine already builds DSH client plugins; set
+ * `DSH_ESBUILD` to point elsewhere. Nothing is downloaded.
  */
 import { mkdir, writeFile } from 'node:fs/promises'
 import { fileURLToPath, pathToFileURL } from 'node:url'
@@ -20,30 +18,22 @@ import path from 'node:path'
 
 const root = path.dirname(path.dirname(fileURLToPath(import.meta.url)))
 const entry = path.join(root, 'src', 'bundle-entry.js')
-// package.json declares `exports["./client"] -> "./client.js"` and
-// `dsh.client.platform = "web"`, so the built file lands beside index.js.
-const outfile = path.join(root, 'client.js')
+// package.json declares `exports["./client"] -> "./lib/client.js"` and
+// `dsh.client.platform = "web"`, matching the layout of the other sidebar
+// plugins in this suite.
+const outfile = path.join(root, 'lib', 'client.js')
 const PLUGIN_ID = 'dsh-spss'
 
-/**
- * Where esbuild may live, in probe order.
- * @returns {string[]} candidate module paths, most specific first
- */
+/** Where this machine's esbuild lives, in probe order. */
 function esbuildCandidates() {
-  const candidates = []
-  if (process.env.DSH_ESBUILD) candidates.push(process.env.DSH_ESBUILD)
-  // Normal case: esbuild is a devDependency of this package.
-  try {
-    candidates.push(createRequire(path.join(root, 'package.json')).resolve('esbuild'))
-  } catch {
-    // Not installed here; fall through.
-  }
-  // A linked DSH profile already ships esbuild for its own client plugins.
+  const fromEnv = process.env.DSH_ESBUILD
   const profile = process.env.DSH_PROFILE_DIR
+  const candidates = []
+  if (fromEnv) candidates.push(fromEnv)
   if (profile) {
     candidates.push(
-      path.join(profile, 'node_modules', 'esbuild', 'lib', 'main.js'),
       path.join(profile, 'node_modules', 'dsh-notes', 'node_modules', 'esbuild', 'lib', 'main.js'),
+      path.join(profile, 'node_modules', 'esbuild', 'lib', 'main.js'),
     )
   }
   return candidates

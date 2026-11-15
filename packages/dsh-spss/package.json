@@ -7,19 +7,18 @@
   "main": "./index.js",
   "exports": {
     ".": "./index.js",
-    "./client": "./client.js",
+    "./client": "./lib/client.js",
     "./package.json": "./package.json",
     "./locale/*.json": "./locale/*.json"
   },
   "files": [
     "index.js",
-    "client.js",
+    "lib/client.js",
     "engine-bridge.js",
     "engine/analyze.py",
     "cordis.patch.yml",
     "icon.svg",
     "locale/*.json",
-    "scripts",
     "README.md"
   ],
   "icon": "icon.svg",
@@ -37,13 +36,6 @@
   },
   "scripts": {
     "test": "node scripts/test.mjs && node scripts/test-routes.mjs",
-    "test:dialog": "node scripts/test.mjs --dialog && node scripts/test-routes.mjs --dialog",
-    "build": "node scripts/build.mjs"
-  },
-  "devDependencies": {
-    "esbuild": "^0.25.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "jsdom": "^26.0.0"
+    "test:dialog": "node scripts/test.mjs --dialog && node scripts/test-routes.mjs --dialog"
   }
 }
