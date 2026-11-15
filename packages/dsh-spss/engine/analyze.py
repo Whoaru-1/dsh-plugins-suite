@@ -321,6 +321,101 @@ def _infer_measure(name, series, value_labels):
         return "scale"
 
 
+def _read_biff2(path):
+    """Read an Excel 2.0/2.1 (BIFF2) workbook into a DataFrame.
+
+    BIFF2 is the 1987-era binary format: a bare record stream with no OLE2
+    container, which every modern reader rejects ("File is not a zip file",
+    "Excel file format cannot be determined"). Statistical packages and older
+    exporters still produce such files, often named .xls, so the engine decodes
+    the stream itself instead of failing on the extension.
+
+    Only the record types needed to rebuild a single sheet's cell grid are
+    handled: BOF/EOF, INTEGER, NUMBER, RK, LABEL, BLANK. Unknown records are
+    skipped by their declared length, which is what makes the walk safe.
+
+    Args:
+        path: absolute path to the file.
+    Returns:
+        a pandas DataFrame, or None when the stream is not BIFF2.
+    """
+    import struct as _struct
+
+    with open(path, "rb") as handle:
+        data = handle.read()
+    if len(data) < 8:
+        return None
+    first_type, first_len = _struct.unpack("<HH", data[0:4])
+    # BOF: 0x0009 (BIFF2), 0x0209 (BIFF3), 0x0409 (BIFF4). Only BIFF2 cells are
+    # decoded here; later variants carry a different cell record layout.
+    if first_type != 0x0009:
+        return None
+
+    cells = {}
+    max_row = -1
+    max_col = -1
+    pos = 0
+    while pos + 4 <= len(data):
+        rtype, rlen = _struct.unpack("<HH", data[pos:pos + 4])
+        if rlen > 0x2000 or pos + 4 + rlen > len(data):
+            break
+        body = data[pos + 4:pos + 4 + rlen]
+        value = None
+        row = col = None
+        try:
+            if rtype in (0x0002, 0x0202) and len(body) >= 8:      # INTEGER
+                row, col = _struct.unpack("<HH", body[0:4])
+                value = _struct.unpack("<H", body[6:8])[0]
+            elif rtype in (0x0003, 0x0203) and len(body) >= 14:   # NUMBER
+                row, col = _struct.unpack("<HH", body[0:4])
+                value = _struct.unpack("<d", body[6:14])[0]
+            elif rtype in (0x002D, 0x027E) and len(body) >= 10:   # RK (BIFF3+)
+                row, col = _struct.unpack("<HH", body[0:4])
+                rk = _struct.unpack("<I", body[6:10])[0]
+                if rk & 0x02:
+                    value = rk >> 2
+                else:
+                    value = _struct.unpack("<d", _struct.pack("<Q", (rk & 0xFFFFFFFC) << 32))[0]
+                if rk & 0x01:
+                    value = value / 100.0
+            elif rtype in (0x0004, 0x0204) and len(body) >= 9:    # LABEL
+                row, col = _struct.unpack("<HH", body[0:4])
+                if rtype == 0x0004:
+                    count = body[7]
+                    raw = body[8:8 + count]
+                else:
+                    count = _struct.unpack("<H", body[6:8])[0]
+                    raw = body[8:8 + count]
+                # BIFF2 strings are byte-per-character; UTF-8 covers the ASCII
+                # column names these files carry, latin-1 never raises.
+                try:
+                    value = raw.decode("utf-8")
+                except UnicodeDecodeError:
+                    value = raw.decode("latin-1")
+            elif rtype == 0x0001 and len(body) >= 4:              # BLANK
+                row, col = _struct.unpack("<HH", body[0:4])
+                value = None
+        except _struct.error:
+            value = None
+        if row is not None and value is not None:
+            cells[(row, col)] = value
+            max_row = max(max_row, row)
+            max_col = max(max_col, col)
+        pos += 4 + rlen
+
+    if max_row < 0 or max_col < 0:
+        return None
+
+    import pandas as _pd
+    grid = [[cells.get((r, c)) for c in range(max_col + 1)] for r in range(max_row + 1)]
+    header = grid[0]
+    columns = []
+    for index, name in enumerate(header):
+        label = str(name).strip() if name is not None else ""
+        columns.append(label if label else f"col{index + 1}")
+    return _pd.DataFrame(grid[1:], columns=columns)
+
+
 def load_dataset(req, log):
     """Read the input file into a Dataset. Raises on hard failure."""
     path = req.get("inputPath")
@@ -381,8 +476,16 @@ def load_dataset(req, log):
             # No openpyxl -> try reading as csv as a last resort.
             df = pd.read_csv(path, sep=opts.get("delimiter") or ",", encoding=opts.get("encoding") or "utf-8")
         except Exception as exc:
-            raise RuntimeError(f"cannot read Excel file: {exc}") from exc
-        log.append(f"Read Excel via pandas.read_excel: {df.shape[0]} rows x {df.shape[1]} columns")
+            # A file named .xls/.xlsx may be a pre-OLE2 Excel 2.x (BIFF2) stream
+            # or a renamed export; pandas rejects those outright. Decode the
+            # binary records ourselves before giving up.
+            log.append(f"pandas.read_excel failed ({type(exc).__name__}: {exc}); trying the BIFF2 reader")
+            df = _read_biff2(path)
+            if df is None:
+                raise RuntimeError(f"cannot read Excel file: {exc}") from exc
+            log.append(f"Read legacy Excel 2.x (BIFF2) stream: {df.shape[0]} rows x {df.shape[1]} columns")
+        if not log or not log[-1].startswith("Read legacy Excel 2.x"):
+            log.append(f"Read Excel via pandas.read_excel: {df.shape[0]} rows x {df.shape[1]} columns")
 
     else:  # csv / tsv
         opts = dict(req.get("csvOptions") or {})

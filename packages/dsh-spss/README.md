@@ -79,6 +79,24 @@ all answering `application/json; charset=utf-8` with `cache-control: no-store`.
   name with no wanted extension gets the first `filters[].extensions[0]`
   appended. The chosen folder and base name are otherwise untouched.
 
+### Input formats
+
+| Extension | Read by |
+|---|---|
+| `.sav` / `.zsav` | pyreadstat (variable + value labels preserved), `pandas.read_spss` fallback |
+| `.dta` | pyreadstat |
+| `.csv` / `.tsv` | `pandas.read_csv` with configurable delimiter, header and encoding (falls back through utf-8-sig, utf-8, gb18030, big5, latin-1) |
+| `.xlsx` / `.xls` | `pandas.read_excel` (openpyxl) |
+| **`.xls` that is really Excel 2.0/2.1 (BIFF2)** | built-in record decoder |
+
+That last row matters in practice. Excel 2.x files are a bare BIFF2 record
+stream with no OLE2 container, and every modern reader rejects them with
+`Excel file format cannot be determined`. Older statistical software and some
+exporters still emit them under an `.xls` name. When `pandas.read_excel` fails,
+the engine walks the binary records itself (BOF/EOF, INTEGER, NUMBER, RK, LABEL,
+BLANK) and rebuilds the grid, logging which path it took. A genuine corrupt file
+still errors out with the original pandas message.
+
 ### Engine payload
 
 ```jsonc
