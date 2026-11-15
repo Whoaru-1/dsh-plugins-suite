@@ -1,0 +1,5 @@
+# dsh-notes bundle layer: mounts the plugin row into the profile stack.
+# The browser half is discovered from this package's `dsh.client` declaration.
+- insert:
+    - id: dsh-notes
+      name: 'dsh-notes'

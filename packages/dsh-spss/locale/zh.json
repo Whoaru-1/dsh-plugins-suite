@@ -1,0 +1,52 @@
+{
+  "meta": {
+    "title": "SPSS 分析",
+    "description": "在本机做 SPSS 风格的统计分析：用系统文件窗口选择数据与输出位置，结果直接写到你指定的文件夹。"
+  },
+  "name": "SPSS 统计分析",
+  "description": "在 DSH 里做 SPSS 风格统计分析：数据从本机选，结果存到本机，每一个输入/输出路径都用原生文件选择器挑选。",
+  "panel": {
+    "title": "SPSS 统计分析",
+    "subtitle": "选数据 → 选分析 → 选输出位置"
+  },
+  "actions": {
+    "pickInput": "选择数据文件…",
+    "pickOutput": "选择输出位置…",
+    "pickOutputFile": "另存为…",
+    "run": "运行分析",
+    "runAgain": "重新运行",
+    "openFolder": "在访达中显示",
+    "refresh": "刷新",
+    "cancel": "取消"
+  },
+  "fields": {
+    "inputPath": "数据文件",
+    "outputDir": "输出文件夹",
+    "outputName": "文件名",
+    "variables": "变量",
+    "analyses": "分析",
+    "exports": "导出格式"
+  },
+  "states": {
+    "noInput": "还没有选择数据文件",
+    "pickerUnavailable": "当前会话无法打开原生文件选择器，请直接在路径框里输入路径。",
+    "picked": "已选择",
+    "cancelled": "已取消选择，未做任何更改。",
+    "running": "正在分析…",
+    "noOutputs": "还没有分析结果",
+    "pythonMissing": "没有找到 Python 3，请在插件配置里填写 pythonPath。"
+  },
+  "analyses": {
+    "freq": "频数分析",
+    "descriptives": "描述统计",
+    "crosstab": "交叉表",
+    "ttest_one": "单样本 T 检验",
+    "ttest_independent": "独立样本 T 检验",
+    "paired_ttest": "配对样本 T 检验",
+    "anova": "单因素方差分析",
+    "corr": "相关分析",
+    "regression": "线性回归",
+    "reliability": "信度分析",
+    "nonparametric": "非参数检验"
+  }
+}

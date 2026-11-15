@@ -1,0 +1,52 @@
+{
+  "meta": {
+    "title": "SPSS Analysis",
+    "description": "SPSS-style statistical analysis on your own machine: pick the data and the output location with native dialogs, and results are written where you choose."
+  },
+  "name": "SPSS Analysis",
+  "description": "SPSS-style statistical analysis inside DSH: pick your data on this computer, write results to a folder you choose, with a native file picker for every input and output path.",
+  "panel": {
+    "title": "SPSS Analysis",
+    "subtitle": "Choose data → choose analyses → choose where results go"
+  },
+  "actions": {
+    "pickInput": "Choose data file…",
+    "pickOutput": "Choose output folder…",
+    "pickOutputFile": "Save as…",
+    "run": "Run analysis",
+    "runAgain": "Run again",
+    "openFolder": "Reveal in Finder",
+    "refresh": "Refresh",
+    "cancel": "Cancel"
+  },
+  "fields": {
+    "inputPath": "Data file",
+    "outputDir": "Output folder",
+    "outputName": "File name",
+    "variables": "Variables",
+    "analyses": "Analyses",
+    "exports": "Export formats"
+  },
+  "states": {
+    "noInput": "No data file chosen yet",
+    "pickerUnavailable": "This session cannot open a native file picker. Type the path into the path field instead.",
+    "picked": "Selected",
+    "cancelled": "Cancelled — nothing was changed.",
+    "running": "Analysing…",
+    "noOutputs": "No results yet",
+    "pythonMissing": "Python 3 was not found. Set pythonPath in the plugin config."
+  },
+  "analyses": {
+    "freq": "Frequencies",
+    "descriptives": "Descriptives",
+    "crosstab": "Crosstabs",
+    "ttest_one": "One-Sample T Test",
+    "ttest_independent": "Independent-Samples T Test",
+    "paired_ttest": "Paired-Samples T Test",
+    "anova": "One-Way ANOVA",
+    "corr": "Correlations",
+    "regression": "Linear Regression",
+    "reliability": "Reliability",
+    "nonparametric": "Nonparametric Tests"
+  }
+}

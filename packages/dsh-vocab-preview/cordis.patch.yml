@@ -1,0 +1,5 @@
+# dsh-vocab-preview bundle layer: mounts the plugin row into the profile stack.
+# The browser half is discovered from this package's `dsh.client` declaration.
+- insert:
+    - id: dsh-vocab-preview
+      name: 'dsh-vocab-preview'

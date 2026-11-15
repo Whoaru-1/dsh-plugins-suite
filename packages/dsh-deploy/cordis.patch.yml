@@ -1,0 +1,4 @@
+# dsh-deploy bundle layer: mounts the sidebar deploy panel.
+- insert:
+    - id: dsh-deploy
+      name: 'dsh-deploy'

@@ -1,0 +1,38 @@
+{
+  "name": "dsh-file-tray",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A produced-files tray in the conversation header's top-right corner: lists every file this conversation has written and opens one on click. The document preview itself is left exactly as the bundled plugin renders it.",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./lib/client.js",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "lib/client.js",
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "license": "MIT",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "test": "node scripts/test.mjs && node scripts/test-wiring.cjs && node scripts/test-open.cjs && node scripts/test-e2e.cjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "jsdom": "^31.0.1",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  }
+}

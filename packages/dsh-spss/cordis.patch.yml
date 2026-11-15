@@ -1,0 +1,25 @@
+# dsh-spss bundle layer: mounts the plugin row into the profile stack.
+#
+# The host half is `./index.js` (the package `main`): it serves the
+# `/api/dsh-spss/*` routes and registers the `spss_analyze` / `spss_list_outputs`
+# tools. The browser half is discovered from this package's `dsh.client`
+# declaration and served from `./client.js` — no extra row is needed for it.
+#
+# Every option below is optional; the plugin falls back to these same defaults
+# when this row has no `config` block at all.
+- insert:
+    - id: dsh-spss
+      name: 'dsh-spss'
+      config:
+        # Absolute path to the python interpreter that runs engine/analyze.py.
+        # Empty => probe DSH_SPSS_PYTHON, python3, /usr/local/bin/python3,
+        # /opt/homebrew/bin/python3 in that order and use the first that works.
+        pythonPath: ''
+        # Hard ceiling for one analysis run, in milliseconds.
+        timeoutMs: 300000
+        # Where results are written. Empty => <dsh home>/dsh-spss/outputs
+        # (i.e. ~/.dsh/dsh-spss/outputs).
+        outputsDir: ''
+        # When false, the picker routes report `unsupported` and the UI must
+        # take a typed path instead of opening a native dialog.
+        allowNativePicker: true

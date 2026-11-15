@@ -1,0 +1,15 @@
+# Dependencies
+node_modules/
+
+# Build & test scratch
+*.log
+*.tmp
+.DS_Store
+__pycache__/
+*.pyc
+.spss-test/
+tmp/
+
+# Editor
+.vscode/
+.idea/

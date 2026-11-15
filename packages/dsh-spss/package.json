@@ -1,0 +1,42 @@
+{
+  "name": "dsh-spss",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SPSS-style statistical analysis inside DSH: pick data in, pick results out, on your own machine — with a native OS file picker for every input and output path.",
+  "type": "module",
+  "main": "./index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./package.json": "./package.json",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "engine-bridge.js",
+    "engine/analyze.py",
+    "cordis.patch.yml",
+    "icon.svg",
+    "locale/*.json",
+    "scripts",
+    "README.md"
+  ],
+  "icon": "icon.svg",
+  "license": "MIT",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "test": "node scripts/test.mjs && node scripts/test-routes.mjs",
+    "test:dialog": "node scripts/test.mjs --dialog && node scripts/test-routes.mjs --dialog"
+  }
+}
