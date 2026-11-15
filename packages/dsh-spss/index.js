@@ -49,6 +49,14 @@ import {
   probeModules,
 } from './engine-bridge.js'
 
+// TEMPORARY DIAGNOSTIC — proves whether the host ever imported this module.
+try {
+  writeFileSync(
+    path.join(process.env.DSH_HOME || path.join(process.env.HOME, '.dsh'), 'dsh-spss.import.json'),
+    JSON.stringify({ at: new Date().toISOString(), pid: process.pid, node: process.version, cwd: process.cwd() }, null, 2),
+  )
+} catch {}
+
 export const name = 'dsh-spss'
 
 /** This bundle's own directory, so the engine resolves when installed from a path. */
@@ -308,16 +316,42 @@ function pickerRequest(body, kind) {
  * @param {object} ctx - host plugin context
  */
 export function apply(ctx) {
+  // TEMPORARY DIAGNOSTIC — records that apply ran and any error it threw.
+  try {
+    writeFileSync(
+      path.join(process.env.DSH_HOME || path.join(process.env.HOME, '.dsh'), 'dsh-spss.apply.json'),
+      JSON.stringify({ at: new Date().toISOString(), pid: process.pid, hasInject: typeof ctx?.inject }, null, 2),
+    )
+  } catch {}
+  const DIAG = (step, extra) => {
+    try {
+      writeFileSync(
+        path.join(process.env.DSH_HOME || path.join(process.env.HOME, '.dsh'), 'dsh-spss.trace.json'),
+        JSON.stringify({ at: new Date().toISOString(), pid: process.pid, step, ...extra }, null, 2),
+      )
+    } catch {}
+  }
+  DIAG('config.start')
   const config = readConfig(ctx?.config)
+  DIAG('config.done', { config })
   try {
     mkdirSync(path.dirname(path.join(defaultOutputsDir())), { recursive: true })
   } catch {
     // A read-only home only costs the first export, not the plugin.
   }
-  writeBootProof(config)
+  DIAG('mkdir.done')
+  try {
+    writeBootProof(config)
+    DIAG('bootproof.done')
+  } catch (e) {
+    DIAG('bootproof.failed', { error: String(e?.message ?? e) })
+  }
 
+  DIAG('inject.start', { services: typeof ctx.inject })
   ctx.inject(['webServer', 'connection'], (routeCtx) => {
+    DIAG('inject.callback', { hasWebServer: typeof routeCtx?.webServer, hasConnection: typeof routeCtx?.connection })
     routeCtx.effect(() => {
+      DIAG('register.start')
       const dispose = routeCtx.webServer.register({
         kind: 'prefix',
         path: MOUNT_PATH,
@@ -335,6 +369,7 @@ export function apply(ctx) {
           }
         },
       })
+      DIAG('register.done', { kind: 'prefix', path: MOUNT_PATH })
       return dispose
     }, 'dsh-spss: /api/dsh-spss/*')
   })

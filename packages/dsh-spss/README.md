@@ -9,7 +9,7 @@ Two halves in one bundle:
 | half | file | owns |
 | --- | --- | --- |
 | host | `index.js` (+ `engine-bridge.js`) | `/api/dsh-spss/*` routes, the two tools, the native picker, the Python child process |
-| client | `lib/client.js` (built from `src/`) | the analysis panel UI (`dsh.client` → `./lib/client.js`) |
+| client | `client.js` (from `src/`) | the analysis panel UI (`dsh.client` → `./client.js`) |
 
 The analysis itself is `engine/analyze.py`, invoked as a child process. The host
 never imports Python code and the engine never touches the UI.
