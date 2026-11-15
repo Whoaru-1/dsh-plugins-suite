@@ -853,6 +853,25 @@ import json, os, sys
 # itself, so writing JSON there would make Python execute it as code.
 req = json.loads(os.fdopen(3, "r", encoding="utf-8").read())
 path = req["path"]; sheet = req.get("sheet"); opts = req.get("csvOptions") or {}
+engine_dir = req.get("engineDir") or ""
+
+def read_excel_fallback(target):
+    """Decode a legacy Excel 2.x (BIFF2) stream via the analysis engine.
+
+    Previews and runs must agree on what a file contains, so the decoder is
+    imported from engine/analyze.py rather than duplicated here.
+    """
+    if not engine_dir:
+        return None
+    try:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location(
+            "dsh_spss_engine", os.path.join(engine_dir, "analyze.py"))
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+        return module._read_biff2(target)
+    except Exception:
+        return None
 limit = int(req.get("limit") or 50)
 def label_of(name):
     return name
@@ -876,7 +895,13 @@ try:
         if low.endswith(".dta"):
             df = pd.read_stata(path)
         elif low.endswith((".xlsx", ".xls", ".xlsm")):
-            df = pd.read_excel(path, sheet_name=(sheet if sheet not in (None, "") else 0))
+            try:
+                df = pd.read_excel(path, sheet_name=(sheet if sheet not in (None, "") else 0))
+            except Exception as excel_error:
+                legacy = read_excel_fallback(path)
+                if legacy is None:
+                    raise excel_error
+                df = legacy
         else:
             sep = opts.get("delimiter") or ","
             enc = opts.get("encoding") or "utf-8-sig"
@@ -910,13 +935,13 @@ except Exception as error:
  * @param {{ pythonPath: string, path: string, sheet?: string|number, csvOptions?: object, limit?: number, timeoutMs?: number }} params
  * @returns {Promise<object>} `{ ok, variables, rows, totalRows }` or `{ ok:false, error }`
  */
-export async function readDataPreview({ pythonPath, path: dataPath, sheet, csvOptions, limit = 50, timeoutMs = 120_000 }) {
+export async function readDataPreview({ pythonPath, path: dataPath, sheet, csvOptions, limit = 50, timeoutMs = 120_000, engineDir = '' }) {
   if (typeof pythonPath !== 'string' || pythonPath === '') {
     return { ok: false, error: 'no Python 3 interpreter was found; set `pythonPath` in the dsh-spss config or DSH_SPSS_PYTHON' }
   }
   // The program travels in argv (`-c`), NOT on stdin, so no path or option is
   // ever exposed to a shell or to `ps` by being pasted into a command string.
-  const request = JSON.stringify({ path: dataPath, sheet, csvOptions, limit })
+  const request = JSON.stringify({ path: dataPath, sheet, csvOptions, limit, engineDir })
   return new Promise((resolve) => {
     let settled = false
     let child

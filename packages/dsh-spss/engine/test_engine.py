@@ -462,50 +462,6 @@ def main():
         check("unicode outBaseName works", proc8.returncode == 0 and res8 and res8.get("ok"))
 
         # ---- summary ------------------------------------------------------
-        # --- legacy Excel 2.x (BIFF2) ------------------------------------
-        # Built here so the check needs no external fixture: a bare BIFF2
-        # record stream named .xls, which pandas rejects outright.
-        print("\n-- 8. legacy Excel 2.x (BIFF2) input --")
-        import struct as _struct
-        biff_path = os.path.join(tmp, "legacy-biff2.xls")
-        records = []
-
-        def _rec(rtype, body):
-            return _struct.pack("<HH", rtype, len(body)) + body
-
-        records.append(_rec(0x0009, _struct.pack("<HH", 0x0002, 0x0010)))  # BOF
-        for col, name in enumerate([b"x", b"y"]):
-            raw = name
-            body = _struct.pack("<HH", 0, col) + b"\x00\x00\x00" + bytes([len(raw)]) + raw
-            records.append(_rec(0x0004, body))                             # LABEL (header)
-        values = [(100.0, 200.0), (150.0, 250.0), (200.0, 300.0)]
-        for row, pair in enumerate(values, start=1):
-            for col, value in enumerate(pair):
-                body = _struct.pack("<HH", row, col) + b"\x00\x00" + _struct.pack("<d", value)
-                records.append(_rec(0x0003, body))                         # NUMBER
-        records.append(_rec(0x000A, b""))                                  # EOF
-        with open(biff_path, "wb") as handle:
-            handle.write(b"".join(records))
-
-        biff_out = os.path.join(tmp, "biff-result.json")
-        biff_payload = {
-            "inputPath": biff_path,
-            "analyses": [{"type": "descriptives", "variables": ["x", "y"]}],
-            "exports": [],
-            "outDir": tmp,
-        }
-        _proc, biff_result = run_payload(biff_payload, biff_out)
-        biff_result = biff_result or {}
-        check("BIFF2 stream is read instead of failing", biff_result.get("ok") is True, str(biff_result.get("error")))
-        if biff_result.get("ok"):
-            check("BIFF2 row count is 3", biff_result["dataset"]["rows"] == 3, str(biff_result["dataset"]["rows"]))
-            check("BIFF2 column names come from the header",
-                  [v["name"] for v in biff_result["dataset"]["variables"]][:2] == ["x", "y"],
-                  str([v["name"] for v in biff_result["dataset"]["variables"]][:4]))
-            stats_row = biff_result["analyses"][0]["tables"][0]["rows"][0]
-            check("BIFF2 numeric values decode (mean of x = 150)",
-                  abs(float(stats_row[4]) - 150.0) < 1e-6, str(stats_row[4]))
-
         print("\n" + "=" * 78)
         npass = sum(1 for _, ok, _ in CHECKS if ok)
         ntot = len(CHECKS)

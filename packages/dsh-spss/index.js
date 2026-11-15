@@ -453,6 +453,9 @@ async function handleRoute(req, res, config) {
       csvOptions: body.value.csvOptions,
       limit: 50,
       timeoutMs: Math.min(config.timeoutMs, 120_000),
+      // Lets the preview reuse the engine's legacy-Excel decoder, so a file the
+      // engine can analyse can also be previewed.
+      engineDir: path.dirname(enginePath(bundleDir)),
     })
     return respond(res, 200, preview)
   }

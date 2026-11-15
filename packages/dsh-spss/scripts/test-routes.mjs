@@ -266,6 +266,57 @@ const readBad = await call('POST', '/api/dsh-spss/read-data', { path: '/tmp/defi
 check('read-data on a missing file fails cleanly', readBad.status === 200 && readBad.body?.ok === false, JSON.stringify(readBad.body).slice(0, 160))
 check('read-data rejects a NUL byte with 400', (await call('POST', '/api/dsh-spss/read-data', { path: '/tmp/a\u0000.csv' })).status === 400)
 
+/* The preview and a run must agree on a legacy Excel 2.x (BIFF2) file, or the
+ * panel would preview one grid and analyse another. Build a tiny fixture here. */
+{
+  const { writeFileSync } = await import('node:fs')
+  const biffPath = path.join(process.env.DSH_HOME, 'legacy-biff2.xls')
+  const rec = (type, body) => {
+    const header = Buffer.alloc(4)
+    header.writeUInt16LE(type, 0)
+    header.writeUInt16LE(body.length, 2)
+    return Buffer.concat([header, body])
+  }
+  const parts = []
+  const bof = Buffer.alloc(4); bof.writeUInt16LE(2, 0); bof.writeUInt16LE(0x10, 2)
+  parts.push(rec(0x0009, bof))
+  for (const [col, name] of ['a', 'b'].entries()) {
+    // LABEL (BIFF2): row(2) col(2) attr(3) len(1) text
+    const head = Buffer.alloc(8)
+    head.writeUInt16LE(0, 0)
+    head.writeUInt16LE(col, 2)
+    head[7] = 1
+    parts.push(rec(0x0004, Buffer.concat([head, Buffer.from(name)])))
+  }
+  const grid = [[10, 20], [30, 40], [50, 60]]
+  for (let row = 0; row < grid.length; row += 1) {
+    for (let col = 0; col < grid[row].length; col += 1) {
+      // NUMBER (BIFF2): row(2) col(2) attr(2) IEEE double(8)
+      const body = Buffer.alloc(14)
+      body.writeUInt16LE(row + 1, 0)
+      body.writeUInt16LE(col, 2)
+      body.writeUInt16LE(0, 4)
+      body.writeDoubleLE(grid[row][col], 6)
+      parts.push(rec(0x0003, body))
+    }
+  }
+  parts.push(rec(0x000A, Buffer.alloc(0)))
+  writeFileSync(biffPath, Buffer.concat(parts))
+
+  const preview = await call('POST', '/api/dsh-spss/read-data', { path: biffPath })
+  check('read-data decodes a BIFF2 stream', preview.body?.ok === true && preview.body?.totalRows === 3, JSON.stringify(preview.body).slice(0, 160))
+  check('read-data BIFF2 columns match the header', JSON.stringify((preview.body?.variables ?? []).map((v) => v.name)) === '["a","b"]', JSON.stringify((preview.body?.variables ?? []).map((v) => v.name)))
+  const analyse = await call('POST', '/api/dsh-spss/run', {
+    inputPath: biffPath,
+    analyses: [{ type: 'descriptives', variables: ['a'] }],
+    exports: [],
+  })
+  check('run decodes the same BIFF2 stream', analyse.body?.ok === true && analyse.body?.dataset?.rows === 3, JSON.stringify(analyse.body).slice(0, 160))
+  // Descriptives columns: Variable, Label, N, Missing, Mean, ...
+  const meanA = analyse.body?.analyses?.[0]?.tables?.[0]?.rows?.[0]?.[4]
+  check('preview and run agree on the data', Math.abs(Number(meanA) - 30) < 1e-9, String(meanA))
+}
+
 check('unknown route is 404', (await call('GET', '/api/dsh-spss/nope')).status === 404)
 
 console.log('\n4. the connection fence')
