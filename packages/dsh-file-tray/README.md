@@ -84,6 +84,23 @@ scripts/test-open.cjs     popover harness under real React (event sequence)
 scripts/test-e2e.cjs      end-to-end harness under real React (mount, click, open)
 ```
 
+## Install
+
+```sh
+cd ~/.dsh/profiles/<profile>
+npm install --save "dsh-file-tray@link:/absolute/path/to/packages/dsh-file-tray"
+```
+
+```yaml
+# cordis.patch.yml
+- insert:
+    - id: dsh-file-tray
+      name: 'dsh-file-tray'
+```
+
+Then **fully restart DSH**. The desktop profile is startup-only, so a row added
+while it runs does not reach the browser boot graph until restart.
+
 ## Development
 
 ```sh

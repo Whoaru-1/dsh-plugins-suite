@@ -37,6 +37,13 @@
   },
   "scripts": {
     "test": "node scripts/test.mjs && node scripts/test-routes.mjs",
-    "test:dialog": "node scripts/test.mjs --dialog && node scripts/test-routes.mjs --dialog"
+    "test:dialog": "node scripts/test.mjs --dialog && node scripts/test-routes.mjs --dialog",
+    "build": "node scripts/build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "jsdom": "^26.0.0"
   }
 }

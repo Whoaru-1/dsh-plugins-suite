@@ -37,6 +37,16 @@ mounted it.
 | `outputsDir` | `''` | where results go. Empty → **`<dsh home>/dsh-spss/outputs`** (`~/.dsh/dsh-spss/outputs`). |
 | `allowNativePicker` | `true` | `false` → picker routes answer `unsupported` and the UI uses its path field. |
 
+### This plugin exports no `Config` schema
+
+The Loader treats an exported `Config` as a Schemastery schema and calls `.validate()` on it during activation. This bundle does not resolve `@deepseek-ai/schemastery` from its own directory, so exporting one makes the plugin fail to activate with:
+
+```
+TypeError: Cannot read properties of undefined (reading 'validate')
+```
+
+`readConfig()` in `index.js` is the single source of truth instead: it accepts the row's `config` map as-is, applies the defaults in the table above, and tolerates a missing or malformed block.
+
 ### Why `<dsh home>/dsh-spss/outputs` is the default
 
 Results are the plugin's data, not the project's source: a workspace-relative
@@ -51,6 +61,18 @@ default is a starting point, not a constraint.
 All under `/api/dsh-spss`, all behind `connection.requestRejection(req)` (the
 Host/Origin check plus the browser-session cookie: 401/403 before any work) and
 all answering `application/json; charset=utf-8` with `cache-control: no-store`.
+
+### Prefix registrations change what `req.url` looks like
+
+The row is mounted with `kind: 'prefix'` on `/api/dsh-spss`. A prefix mount may
+hand the handler either the **full address** (`/api/dsh-spss/status`) or only
+the **tail** after the mount point (`/status`) — the desktop Host delivers the
+tail. Comparing against the full path only made every request fall through to
+the handler's own 404 while every full-path test still passed.
+
+`routeTail()` normalises both shapes before routing, and
+`scripts/test-routes.mjs` exercises the tail form against a server that models
+both forwarding styles. Keep that test when changing routing.
 
 | method | path | body | answers |
 | --- | --- | --- | --- |

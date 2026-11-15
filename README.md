@@ -1,5 +1,7 @@
 # DSH Plugins Suite
 
+![CI](https://github.com/Whoaru-1/dsh-plugins-suite/actions/workflows/ci.yml/badge.svg)
+
 A personal collection of [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) (DSH) plugins, built and used on macOS.
 
 Each package under [`packages/`](packages) is a self-contained DSH bundle: a Host half (`index.js`) that registers routes, tools and services, and usually a Client half (`client.js`) that renders into the Web UI through slots.
@@ -70,6 +72,9 @@ All suites pass without network access. A few checks that need sample documents 
 | dsh-notes | model + host |
 | dsh-vocab-preview | 19 |
 | dsh-deploy | 16 |
+| dsh-balance | 15 |
+
+CI (`.github/workflows/ci.yml`) builds and tests every package on Linux for each push, re-runs the Python engine suite, fails if a committed `client.js` is out of date with `src/`, validates that every package declares the metadata DSH needs, and scans the tree for credential-shaped strings.
 
 ## Notes
 

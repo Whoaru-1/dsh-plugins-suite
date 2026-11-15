@@ -1,0 +1,124 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  plugins:
+    name: ${{ matrix.package }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        package:
+          - dsh-spss
+          - dsh-balance
+          - dsh-deploy
+          - dsh-file-tray
+          - dsh-notes
+          - dsh-office-preview
+          - dsh-vocab-preview
+
+    defaults:
+      run:
+        working-directory: packages/${{ matrix.package }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # Only dsh-spss runs Python; it is the plugin with a computation engine.
+      - uses: actions/setup-python@v5
+        if: matrix.package == 'dsh-spss'
+        with:
+          python-version: '3.11'
+
+      - name: Install Node dependencies
+        run: npm install --no-audit --no-fund
+
+      # esbuild ships prebuilt binaries; some npm setups need this to be explicit.
+      - name: Ensure esbuild binary
+        run: npm rebuild esbuild || true
+
+      - name: Build client bundle
+        run: npm run build
+
+      - name: Install engine dependencies
+        if: matrix.package == 'dsh-spss'
+        run: python -m pip install --quiet numpy pandas scipy pyreadstat matplotlib openpyxl python-docx
+
+      - name: Run the engine suite (Python)
+        if: matrix.package == 'dsh-spss'
+        run: python engine/test_engine.py
+
+      - name: Run tests
+        run: npm test
+
+      - name: Fail on uncommitted bundle drift
+        run: |
+          if ! git diff --quiet -- client.js lib/client.js; then
+            echo "::error::Committed client bundle is out of date with src/. Run 'npm run build' and commit."
+            git --no-pager diff --stat -- client.js lib/client.js
+            exit 1
+          fi
+
+  docs:
+    name: docs and manifests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Every package has the metadata DSH needs
+        run: |
+          fail=0
+          for dir in packages/*/; do
+            name=$(basename "$dir")
+            pkg="$dir/package.json"
+            if [ ! -f "$pkg" ]; then
+              echo "::error::$name has no package.json"
+              fail=1
+              continue
+            fi
+            node -e "
+              const fs = require('node:fs');
+              const p = JSON.parse(fs.readFileSync('$pkg', 'utf8'));
+              const problems = [];
+              if (!p.name) problems.push('missing name');
+              if (!p.dsh?.bundle?.patch) problems.push('missing dsh.bundle.patch');
+              if (!fs.existsSync('$dir' + (p.dsh?.bundle?.patch ?? '').replace(/^\.\//, ''))) {
+                problems.push('bundle patch file not found');
+              }
+              if (p.dsh?.client && !fs.existsSync('$dir' + (p.exports?.['./client'] ?? '').replace(/^\.\//, ''))) {
+                problems.push('client entry not found');
+              }
+              if (problems.length) { console.log('::error::$name: ' + problems.join('; ')); process.exit(1); }
+              console.log('ok ' + p.name);
+            " || fail=1
+          done
+          exit $fail
+
+      - name: No secrets in the tree
+        run: |
+          if grep -rIlE 'sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}|AKIA[0-9A-Z]{16}|BEGIN [A-Z ]*PRIVATE KEY' \
+               --include='*.js' --include='*.mjs' --include='*.cjs' --include='*.json' --include='*.md' --include='*.yml' \
+               --exclude-dir=node_modules .; then
+            echo "::error::A credential-shaped string was found in the tree."
+            exit 1
+          fi
+          echo "no credentials found"

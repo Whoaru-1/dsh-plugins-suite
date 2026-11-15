@@ -24,14 +24,33 @@ DeepSeek Harness 侧栏「部署」面板：一键把当前静态站点上传到
 
 ## 安装 / 加载
 
-已安装到 `~/.dsh/profiles/{desktop,web}`：
+```sh
+cd ~/.dsh/profiles/<profile>
+npm install --save "dsh-deploy@link:/absolute/path/to/packages/dsh-deploy"
+```
 
-- profile `node_modules/dsh-deploy` → 本目录的符号链接
-- profile `package.json` 的 `dependencies` 增加 `link:` 条目
-- profile `cordis.patch.yml` 增加 insert 行
+```yaml
+# cordis.patch.yml
+- insert:
+    - id: dsh-deploy
+      name: 'dsh-deploy'
+```
 
 **desktop profile 是启动时加载：需要退出并重新打开 DeepSeek Harness。**
 加载成功后会出现 `$DSH_HOME/dsh-deploy.boot.json`，左侧栏出现「部署」。
+
+### 首次使用需要先填配置
+
+仓库里的默认配置**全部留空**（不包含任何真实项目路径或云环境 ID），装上后请先在面板里填写：
+
+| 配置项 | 说明 |
+| --- | --- |
+| 项目路径 | 你本地静态站点的绝对路径，必须含 `index.html` |
+| CloudBase 环境 ID | 形如 `xxx-1234567890` |
+| 云路径 | 部署到托管的子路径，可留空表示根目录 |
+| 站点地址 | 部署后可访问的 URL，用于线上版本比对 |
+
+面板上的「部署 / 校验线上版本 / Push GitHub」依赖项目里存在 `scripts/deploy-cloudbase.sh` 与 `scripts/check-deploy.mjs`；这两个脚本属于你的站点项目，本仓库不提供。
 
 ## 开发
 
