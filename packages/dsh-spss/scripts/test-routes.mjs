@@ -222,6 +222,24 @@ check('outputs is 200 with ok:true', outputsEmpty.status === 200 && outputsEmpty
 check('outputs lists files array', Array.isArray(outputsEmpty.body?.files))
 check('outputs dir is the configured one', outputsEmpty.body?.dir?.includes(`dsh-spss-routes-${process.pid}`), outputsEmpty.body?.dir)
 
+/* A blank config.outputsDir must resolve to <DSH_HOME>/dsh-spss/outputs for
+ * BOTH the listing route and a run; passing '' onward used to raise
+ * "mkdir '' -> ENOENT" and silently divert results to a temp dir. */
+const defaultOutputs = path.join(process.env.DSH_HOME, 'dsh-spss', 'outputs')
+const defaultListing = await host.performListOutputs({ config: { outputsDir: '' } })
+check('blank outputsDir resolves for listing', defaultListing.ok === true && defaultListing.dir === defaultOutputs, JSON.stringify(defaultListing).slice(0, 160))
+const defaultRun = await host.performRun({
+  config: { outputsDir: '', timeoutMs: 120_000, pythonPath: '' },
+  body: {
+    inputPath: path.join(bundleDir, 'engine', 'sample_data.csv'),
+    analyses: [{ type: 'descriptives', variables: ['age'] }],
+    exports: ['csv'],
+    outBaseName: 'default-dir-check',
+  },
+})
+const defaultRunPath = defaultRun.outputs?.find((entry) => entry.kind === 'csv')?.path ?? ''
+check('blank outputsDir resolves for a run', defaultRun.ok === true && defaultRunPath.startsWith(defaultOutputs), defaultRunPath || JSON.stringify(defaultRun).slice(0, 160))
+
 const pickOff = await call('POST', '/api/dsh-spss/pick', { kind: 'open', title: 'pick a file' })
 check('pick with DSH_SPSS_PICKER=off returns unsupported immediately', pickOff.status === 200 && pickOff.body?.unsupported === true, JSON.stringify(pickOff.body))
 check('pick unsupported carries a hint for the UI fallback', typeof pickOff.body?.hint === 'string' && pickOff.body.hint !== '')

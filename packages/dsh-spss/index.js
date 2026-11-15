@@ -183,7 +183,9 @@ export async function performRun({ config, body }) {
   const analysesCheck = normalizeAnalyses(source.analyses)
   if (!analysesCheck.ok) return { ok: false, error: analysesCheck.error }
 
-  const outDir = safePath(source.outDir) ?? config.outputsDir
+  // Blank config.outputsDir means "the default folder"; resolve it so results
+  // land there instead of falling back to a temp directory.
+  const outDir = safePath(source.outDir) ?? resolveOutputsDir(config.outputsDir)
   const outBaseName = resultBaseName(source.outBaseName)
 
   const python = await resolvePython(config.pythonPath)
